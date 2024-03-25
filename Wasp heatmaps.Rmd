@@ -1,0 +1,1703 @@
+---
+title: "Dissertation heatmaps"
+author: "Tiffene Larose"
+date: '2024-02-06'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r - heatmaps}
+
+# Library
+library(ggplot2)
+library(dplyr)
+#library(hrbrthemes)
+
+
+#create sheet to receive X and Y coords per second
+
+coords_x = data.frame(time_secs = numeric(),
+                              X_cm = numeric(),
+                              Y_cm = numeric(),
+                              stringsAsFactors = FALSE)
+
+colnames(coords_x) = c("time_secs", "X_cm", "Y_cm")
+
+#load individual spreadsheet - add file path here
+xy_test = as.data.frame(read.csv("/Users/larost1/Desktop/Dissertation/Data/19058_pre_290819_10min/19058_pre_290819_10min_wasp1.csv"), 
+                        row.names=NULL)
+heatmap_path = "/Users/larost1/Desktop/Dissertation/Data/Heatmaps/19058/pre/wasp1"
+xsize = c(0,8.01)
+ysize = c(7.66,0)
+wasp_col= c('darkolivegreen1', "darkolivegreen4", 'darkgreen')
+#wasp0: 'lightblue1', "lightblue3", 'lightblue4'
+  #density plot: 'lightblue1', "steelblue2", 'darkblue'
+#wasp1: 'darkolivegreen1', "darkolivegreen4", 'darkgreen'
+#wasp2: 'khaki', 'gold', 'orange'
+#wasp3: 'rosybrown1','salmon','tomato' 
+#wasp4: 'pink', 'palevioletred1', 'maroon'
+#wasp5: 'plum1', 'orchid', 'darkorchid'
+#create a row per second (25 frames) of video
+
+for(i in 1:(nrow(xy_test)/25)+1){
+  a = c(i,0,0)
+  coords_x = rbind(coords_x,a)
+}
+
+colnames(coords_x) = c("time_secs", "X_cm", "Y_cm")
+
+#average every 25 frames as a row
+
+for(i in 1:nrow(coords_x)){
+  a = xy_test[((i*25)-24):(i*25),]
+  coords_x$X_cm[i] = mean(na.omit(a$X..cm.[is.finite(a$X..cm.)]))
+  coords_x$Y_cm[i] = mean(na.omit(a$Y..cm.[is.finite(a$Y..cm.)]))
+}
+
+#hex_plot
+
+
+hex_plot = ggplot(coords_x, aes(X_cm , Y_cm)) + 
+  geom_hex(bins = 30) +
+  scale_fill_gradientn(colours = wasp_col,
+                       values = c(0, .Machine$double.eps, 1)) +
+  xlim(xsize) +
+  ylim(ysize) +
+  theme(
+         panel.background = element_rect(fill='transparent'),
+         panel.grid.major = element_blank(), 
+         panel.grid.minor = element_blank(),
+         plot.background = element_rect(fill='transparent', color=NA),
+         legend.background = element_rect(fill='transparent'),
+         panel.border = element_rect(color = "black", fill = NA, size = 1)
+       ) +
+  coord_equal(ratio = 1) 
+print(hex_plot)
+ggsave(filename='hexplot.png', plot=hex_plot, bg='transparent', path= heatmap_path)
+
+#square_plot
+
+square_plot = ggplot(coords_x, aes(X_cm, Y_cm)) +
+  geom_bin2d(bins = 30) +
+  scale_fill_gradientn(colours = wasp_col,
+                       values = c(0, .Machine$double.eps, 1)) +
+  xlim(xsize) +
+  ylim(ysize) +
+  theme(
+         panel.background = element_rect(fill='transparent'),
+         panel.grid.major = element_blank(), 
+         panel.grid.minor = element_blank(),
+         plot.background = element_rect(fill='transparent', color=NA),
+         legend.background = element_rect(fill='transparent'),
+         panel.border = element_rect(color = "black", fill = NA, size = 1)
+       ) +
+  coord_equal(ratio = 1) 
+print(square_plot)
+ggsave('squareplot.png', square_plot, bg='transparent', path= heatmap_path)
+
+
+#density_plot a
+
+density_a = ggplot(coords_x, aes(X_cm, Y_cm)) + 
+  geom_density2d(bins = 25, linewidth=0.15, colour="darkorchid") +
+  scale_fill_gradientn(colours = c('lightblue4')) +
+  xlim(xsize) +
+  ylim(ysize) +
+    theme(
+         panel.background = element_rect(fill='transparent'),
+         panel.grid.major = element_blank(), 
+         panel.grid.minor = element_blank(),
+         plot.background = element_rect(fill='transparent', color=NA),
+         legend.background = element_rect(fill='transparent'),
+         panel.border = element_rect(color = "black", fill = NA, size = 1)
+       ) +
+  coord_equal(ratio = 1) 
+print(density_a)
+ggsave('density_a.png', density_a, bg='transparent', path= heatmap_path)
+
+#density_plot b
+
+density_b = ggplot(coords_x, aes(X_cm, Y_cm)) + 
+  stat_density_2d(bins = 50, aes(fill = stat(level)), geom = "polygon") +
+  scale_fill_gradientn(colours = wasp_col,
+                       values = c(0, .Machine$double.eps, 1)) +
+  geom_density2d(aes(),linewidth=0.15, colour="grey20", bins = 25) +
+  xlim(xsize) +
+  ylim(ysize) +
+      theme(
+         panel.background = element_rect(fill='transparent'),
+         panel.grid.major = element_blank(), 
+         panel.grid.minor = element_blank(),
+         plot.background = element_rect(fill='transparent', color=NA),
+         legend.background = element_rect(fill='transparent'),
+         panel.border = element_rect(color = "black", fill = NA, size = 1)
+       ) +
+  coord_equal(ratio = 1) 
+print(density_b)
+ggsave('density_b.png', density_b, bg='transparent', path= heatmap_path)
+
+
+
+# Make dataset with one row per square of area
+# would replace "na.omit(coords_x$X_cm)+1+square_size" with the actual max value
+square_size = 0.25
+
+x = seq(0, max(8.01), by = square_size)
+y = seq(0, max(7.66), by = square_size)
+squares_x = expand.grid(X=x, Y=y)
+squares_x$value = 0
+
+#add occurrence values to squares dataset
+
+for(i in 1:nrow(squares_x)){
+  
+a = filter(coords_x, X_cm >= squares_x$X[i] & X_cm < (squares_x$X[i]+square_size) & Y_cm >= squares_x$Y[i] & Y_cm < (squares_x$Y[i]+square_size))
+ 
+squares_x$value[i] = nrow(a)
+ 
+}
+
+#Heatmap 
+plotdata = squares_x
+plotdata$X = plotdata$X + (square_size/2)
+plotdata$Y = plotdata$Y + (square_size/2)
+
+heatmap = ggplot(squares_x, aes(X, Y, fill=value)) + 
+  geom_tile() +
+  scale_y_reverse() +
+  scale_fill_gradientn(colours = c('transparent',wasp_col),
+                       values = c(0, .Machine$double.eps, 1)) +
+  geom_vline(xintercept = 0, linetype = "solid", color = "black") +
+  geom_hline(yintercept = 0, linetype = "solid", color = "black") +
+  geom_vline(xintercept = 8.01, linetype = "solid", color = "black") +
+  geom_hline(yintercept = 7.66, linetype = "solid", color = "black") +
+        theme(
+         panel.background = element_rect(fill='transparent'),
+         panel.grid.major = element_blank(), 
+         panel.grid.minor = element_blank(),
+         plot.background = element_rect(fill='transparent', color=NA),
+         legend.background = element_rect(fill='transparent'),
+         panel.border = element_rect(color = "black", fill = NA, size = 1)
+       ) +
+  coord_equal(ratio = 1) 
+print(heatmap)
+ggsave('heatmap.png', heatmap, bg='transparent', path= heatmap_path)
+
+```
+
+```{r - heatmaps}
+# Library
+library(ggplot2)
+library(dplyr)
+#library(hrbrthemes)
+
+
+#create sheet to receive X and Y coords per second
+
+coords_x = data.frame(time_secs = numeric(),
+                              X_cm = numeric(),
+                              Y_cm = numeric(),
+                              stringsAsFactors = FALSE)
+
+colnames(coords_x) = c("time_secs", "X_cm", "Y_cm")
+
+#load individual spreadsheet - add file path here
+xy_test = as.data.frame(read.csv("/Users/larost1/Desktop/Dissertation/Data/19058_pre_290819_10min/19058_pre_290819_10min_wasp1.csv"), 
+                        row.names=NULL)
+heatmap_path = "/Users/larost1/Desktop/Dissertation/Data/Heatmaps/19058_pre_290819_10min/wasp1"
+xsize = c(0,8.01)
+ysize = c(7.66,0)
+
+#create a row per second (25 frames) of video
+
+for(i in 1:(nrow(xy_test)/25)+1){
+  a = c(i,0,0)
+  coords_x = rbind(coords_x,a)
+}
+
+colnames(coords_x) = c("time_secs", "X_cm", "Y_cm")
+
+#average every 25 frames as a row
+
+for(i in 1:nrow(coords_x)){
+  a = xy_test[((i*25)-24):(i*25),]
+  coords_x$X_cm[i] = mean(na.omit(a$X..cm.[is.finite(a$X..cm.)]))
+  coords_x$Y_cm[i] = mean(na.omit(a$Y..cm.[is.finite(a$Y..cm.)]))
+}
+
+# Make dataset with one row per square of area
+# would replace "na.omit(coords_x$X_cm)+1+square_size" with the actual max value
+square_size = 0.25
+
+x = seq(0, max(8.01), by = square_size)
+y = seq(0, max(7.66), by = square_size)
+squares_x = expand.grid(X=x, Y=y)
+squares_x$value = 0
+
+#add occurrence values to squares dataset
+
+for(i in 1:nrow(squares_x)){
+  
+a = filter(coords_x, X_cm >= squares_x$X[i] & X_cm < (squares_x$X[i]+square_size) & Y_cm >= squares_x$Y[i] & Y_cm < (squares_x$Y[i]+square_size))
+ 
+squares_x$value[i] = nrow(a)
+ 
+}
+
+#Heatmap 
+heatmap = ggplot(squares_x, aes(X, Y, fill=value)) + 
+  geom_tile() +
+  scale_y_reverse() +
+  scale_fill_gradientn(colours = c('transparent','plum1', 'orchid', 'darkorchid'),
+                       values = c(0, .Machine$double.eps, 1)) +
+        theme(
+         panel.background = element_rect(fill='transparent'),
+         panel.grid.major = element_blank(), 
+         panel.grid.minor = element_blank(),
+         plot.background = element_rect(fill='transparent', color=NA),
+         legend.background = element_rect(fill='transparent'),
+         panel.border = element_rect(color = "black", fill = NA, size = 1)
+       ) +
+  coord_equal(ratio = 1) 
+print(heatmap)
+#ggsave('heatmap.png', heatmap, bg='transparent', path= heatmap_path)
+
+# zero: 'lightblue1', "lightblue3", 'lightblue4'
+#density plot colours c('lightblue1', "steelblue2", 'darkblue')
+# one: 'darkolivegreen1', "darkolivegreen4", 'darkgreen'
+# two: 'khaki', 'gold', 'orange'
+# three: 'pink', 'palevioletred1', 'maroon'
+#Four: 'plum1', 'orchid', 'darkorchid'
+
+```
+
+```{r - overlap wasp and diff brood}
+library(tidyr)
+library(tidyverse)
+library(dplyr)
+# Library
+library(ggplot2)
+library(dplyr)
+#library(hrbrthemes)
+
+
+#create sheet to receive X and Y coords per second
+
+coords_x = data.frame(time_secs = numeric(),
+                              X_cm = numeric(),
+                              Y_cm = numeric(),
+                              stringsAsFactors = FALSE)
+
+colnames(coords_x) = c("time_secs", "X_cm", "Y_cm")
+
+#load individual spreadsheet - add file path here
+xy_test = as.data.frame(read.csv("/Users/larost1/Desktop/Dissertation/Data/19083_pre_140919_10min/data/19083_pre_140919_10min_wasp2.csv"), 
+                        row.names=NULL)
+
+xsize = c(0,7.33)
+ysize = c(7.16,0)
+
+for(i in 1:(nrow(xy_test)/25)+1){
+  a = c(i,0,0)
+  coords_x = rbind(coords_x,a)
+}
+
+colnames(coords_x) = c("time_secs", "X_cm", "Y_cm")
+
+#average every 25 frames as a row
+
+for(i in 1:nrow(coords_x)){
+  a = xy_test[((i*25)-24):(i*25),]
+  coords_x$X_cm[i] = mean(na.omit(a$X..cm.[is.finite(a$X..cm.)]))
+  coords_x$Y_cm[i] = mean(na.omit(a$Y..cm.[is.finite(a$Y..cm.)]))
+}
+
+
+# Make dataset with one row per square of area
+# would replace "na.omit(coords_x$X_cm)+1+square_size" with the actual max value
+square_size = 0.25
+
+x = seq(0, max(7.33), by = square_size)
+y = seq(0, max(7.16), by = square_size)
+squares_x = expand.grid(X=x, Y=y)
+squares_x$value = 0
+
+#add occurrence values to squares dataset
+
+for(i in 1:nrow(squares_x)){
+  
+a = filter(coords_x, X_cm >= squares_x$X[i] & X_cm < (squares_x$X[i]+square_size) & Y_cm >= squares_x$Y[i] & Y_cm < (squares_x$Y[i]+square_size))
+ 
+squares_x$value[i] = nrow(a)
+ 
+}
+
+plotdata = squares_x
+plotdata$X = plotdata$X + (square_size/2)
+plotdata$Y = plotdata$Y + (square_size/2)
+wasp_col = "orchid"
+
+heatmap = ggplot(squares_x, aes(X, Y, fill=value)) +
+  geom_tile() +
+  scale_y_reverse() +
+  scale_fill_gradientn(colours = c('transparent',wasp_col),values = c(0, .Machine$double.eps, 1)) +
+  geom_vline(xintercept = 0, linetype = "solid", color = "black") +
+  geom_hline(yintercept = 0, linetype = "solid", color = "black") +
+  geom_vline(xintercept = 7.39, linetype = "solid", color = "black") +
+  geom_hline(yintercept = 6.43, linetype = "solid", color = "black") +
+        theme(
+         panel.border = element_rect(color = "black", fill = NA, size = 1)
+       ) +
+  coord_equal(ratio = 1)
+print(heatmap)
+
+#########################################################################
+# matrix for larvae
+#create sheet to receive X and Y coords per second
+
+coords_brood = data.frame(day3X = numeric(),
+                      day3Y = numeric(),
+                      value = numeric(),
+                      stringsAsFactors = FALSE)
+
+colnames(coords_brood) = c("PreX", "PreY", "value")
+
+#load individual spreadsheet - add file path here
+xy_brood = as.data.frame(read.csv("/Users/larost1/Desktop/Dissertation/Brood binary/19083_brood.csv"), 
+                        row.names=NULL)
+xsize = c(0,7.33)
+ysize = c(7.16,0)
+
+
+square_size = 0.25
+
+x = seq(0, max(7.33), by = square_size)
+y = seq(0, max(7.16), by = square_size)
+squares_b = expand.grid(X=x, Y=y)
+squares_b$value = 0
+
+#add occurrence values to squares dataset
+for(i in 1:nrow(squares_b)){
+  brood <- filter(xy_brood, PreX >= squares_b$X[i] & PreX < (squares_b$X[i]+square_size) & 
+                                PreY >= squares_b$Y[i] & PreY < (squares_b$Y[i]+square_size) &
+                                pc == 1)  # Filter based on eggs column
+  
+  squares_b$value[i] <- nrow(brood)
+}
+
+
+#pivot wider converts it into a matrix
+brood = squares_b %>%
+  pivot_wider(
+    names_from = Y,
+    values_from = value
+  )
+brood
+
+
+
+
+increment_adjacent_and_threshold <- function(brood) {
+  rows <- nrow(brood)
+  cols <- ncol(brood)
+  
+  # Copy the original matrix
+  result_matrix <- brood
+  
+  # Iterate over each element of the matrix
+  for (i in 1:rows) {
+    for (j in 1:cols) {
+      # Check if the current element is 1
+      if (brood[i, j] == 1) {
+        # Increment adjacent elements
+        if (i > 1) result_matrix[i - 1, j] <- result_matrix[i - 1, j] + 1  # Up
+        if (i < rows) result_matrix[i + 1, j] <- result_matrix[i + 1, j] + 1  # Down
+        if (j > 1) result_matrix[i, j - 1] <- result_matrix[i, j - 1] + 1  # Left
+        if (j < cols) result_matrix[i, j + 1] <- result_matrix[i, j + 1] + 1  # Right
+      }
+    }
+    
+  }
+  
+  # Threshold non-zero values to 1
+  result_matrix[result_matrix != 0] <- 1
+  
+  return(result_matrix)
+}
+
+
+
+# Increment adjacent elements and set non-zero values to 1
+result_matrix <- increment_adjacent_and_threshold(brood)
+result_matrix$X = brood$X
+
+print(result_matrix)
+
+
+
+#pivot longer coverts the matrix into the longer form
+brood_longer = result_matrix %>% pivot_longer(cols=c(colnames(result_matrix[2:ncol(result_matrix)])))#
+ 
+colnames(brood_longer) = c("X","Y","value")
+
+
+
+##########################################################################
+##########################################################################
+
+#compares matrix 1 (squares_x: wasp presence), with matrix 2 (brood_longer: larvae)
+# squares_tbl <- as_tibble(squares_x)
+squares_x <- squares_x[order(squares_x$X), ]
+brood_longer[] <- lapply(brood_longer, as.numeric)
+brood_longer_df <- as.data.frame(brood_longer)
+brood_longer_df[105, "value"] <- 0
+matrix1 = squares_x
+matrix2 = brood_longer_df
+
+
+overlap_matrix <- matrix(0, nrow = nrow(matrix1), ncol = ncol(matrix1))
+colnames(overlap_matrix) <- colnames(matrix1)
+
+#make sure they have the same square size so the column and row number matches
+
+# Sum matrices element-wise only if both cells are non-zero
+
+for (i in 1:nrow(matrix1)) {
+  if (matrix1[i, "value"] != 0 && matrix2[i, "value"] != 0) {
+    overlap_matrix[i, 3] <- matrix1[i, "value"]
+  }
+}
+
+
+
+print("Overlap Matrix:")
+print(overlap_matrix)
+
+#make total occupation matrix for the two wasps
+sum_matrix = matrix1
+sum_matrix$X= 0
+sum_matrix$Y= 0
+
+#divide sum overlap by sum total times 100 to get percent
+sum(overlap_matrix)/sum(sum_matrix)*100
+```
+
+
+```{r - overlap matrix: wasp and larvae }
+library(tidyr)
+library(tidyverse)
+library(dplyr)
+# Library
+library(ggplot2)
+library(dplyr)
+#library(hrbrthemes)
+
+
+#create sheet to receive X and Y coords per second
+
+coords_x = data.frame(time_secs = numeric(),
+                              X_cm = numeric(),
+                              Y_cm = numeric(),
+                              stringsAsFactors = FALSE)
+
+colnames(coords_x) = c("time_secs", "X_cm", "Y_cm")
+
+#load individual spreadsheet - add file path here
+xy_test = as.data.frame(read.csv("/Users/larost1/Desktop/Dissertation/Data/19063_pre_140919_b_10min/data/19063_pre_140919_b_10min_wasp0.csv"), 
+                        row.names=NULL)
+
+xsize = c(0,7.39)
+ysize = c(6.43,0)
+
+for(i in 1:(nrow(xy_test)/25)+1){
+  a = c(i,0,0)
+  coords_x = rbind(coords_x,a)
+}
+
+colnames(coords_x) = c("time_secs", "X_cm", "Y_cm")
+
+#average every 25 frames as a row
+
+for(i in 1:nrow(coords_x)){
+  a = xy_test[((i*25)-24):(i*25),]
+  coords_x$X_cm[i] = mean(na.omit(a$X..cm.[is.finite(a$X..cm.)]))
+  coords_x$Y_cm[i] = mean(na.omit(a$Y..cm.[is.finite(a$Y..cm.)]))
+}
+
+
+# Make dataset with one row per square of area
+# would replace "na.omit(coords_x$X_cm)+1+square_size" with the actual max value
+square_size = 0.25
+
+x = seq(0, max(7.39), by = square_size)
+y = seq(0, max(6.43), by = square_size)
+squares_x = expand.grid(X=x, Y=y)
+squares_x$value = 0
+
+#add occurrence values to squares dataset
+
+for(i in 1:nrow(squares_x)){
+  
+a = filter(coords_x, X_cm >= squares_x$X[i] & X_cm < (squares_x$X[i]+square_size) & Y_cm >= squares_x$Y[i] & Y_cm < (squares_x$Y[i]+square_size))
+ 
+squares_x$value[i] = nrow(a)
+ 
+}
+
+plotdata = squares_x
+plotdata$X = plotdata$X + (square_size/2)
+plotdata$Y = plotdata$Y + (square_size/2)
+wasp_col = "orchid"
+
+heatmap = ggplot(squares_x, aes(X, Y, fill=value)) +
+  geom_tile() +
+  scale_y_reverse() +
+  scale_fill_gradientn(colours = c('transparent',wasp_col),values = c(0, .Machine$double.eps, 1)) +
+  geom_vline(xintercept = 0, linetype = "solid", color = "black") +
+  geom_hline(yintercept = 0, linetype = "solid", color = "black") +
+  geom_vline(xintercept = 7.39, linetype = "solid", color = "black") +
+  geom_hline(yintercept = 6.43, linetype = "solid", color = "black") +
+        theme(
+         panel.border = element_rect(color = "black", fill = NA, size = 1)
+       ) +
+  coord_equal(ratio = 1)
+print(heatmap)
+
+#########################################################################
+# matrix for larvae
+#create sheet to receive X and Y coords per second
+
+coords_brood = data.frame(day3X = numeric(),
+                      day3Y = numeric(),
+                      value = numeric(),
+                      stringsAsFactors = FALSE)
+
+colnames(coords_brood) = c("PreX", "PreY", "value")
+
+#load individual spreadsheet - add file path here
+xy_brood = as.data.frame(read.csv("/Users/larost1/Desktop/Dissertation/Brood binary/19063_larvae.csv"), 
+                        row.names=NULL)
+xsize = c(0,7.39)
+ysize = c(6.43,0)
+
+
+square_size = 0.25
+
+x = seq(0, max(7.39), by = square_size)
+y = seq(0, max(6.43), by = square_size)
+squares_b = expand.grid(X=x, Y=y)
+squares_b$value = 0
+
+#add occurrence values to squares dataset
+
+for(i in 1:nrow(squares_b)){
+  
+  brood = filter(xy_brood, PreX >= squares_b$X[i] & PreX < (squares_b$X[i]+square_size) & PreY >= squares_b$Y[i] & PreY < (squares_b$Y[i]+square_size))
+  
+  squares_b$value[i] = nrow(brood)
+  
+}
+
+#pivot wider converts it into a matrix
+brood = squares_b %>%
+  pivot_wider(
+    names_from = Y,
+    values_from = value
+  )
+brood
+
+
+
+
+increment_adjacent_and_threshold <- function(brood) {
+  rows <- nrow(brood)
+  cols <- ncol(brood)
+  
+  # Copy the original matrix
+  result_matrix <- brood
+  
+  # Iterate over each element of the matrix
+  for (i in 1:rows) {
+    for (j in 1:cols) {
+      # Check if the current element is 1
+      if (brood[i, j] == 1) {
+        # Increment adjacent elements
+        if (i > 1) result_matrix[i - 1, j] <- result_matrix[i - 1, j] + 1  # Up
+        if (i < rows) result_matrix[i + 1, j] <- result_matrix[i + 1, j] + 1  # Down
+        if (j > 1) result_matrix[i, j - 1] <- result_matrix[i, j - 1] + 1  # Left
+        if (j < cols) result_matrix[i, j + 1] <- result_matrix[i, j + 1] + 1  # Right
+      }
+    }
+    
+  }
+  
+  # Threshold non-zero values to 1
+  result_matrix[result_matrix != 0] <- 1
+  
+  return(result_matrix)
+}
+
+
+
+# Increment adjacent elements and set non-zero values to 1
+result_matrix <- increment_adjacent_and_threshold(brood)
+result_matrix$X = brood$X
+
+print(result_matrix)
+
+
+
+#pivot longer coverts the matrix into the longer form
+brood_longer = result_matrix %>% pivot_longer(cols=c(colnames(result_matrix[2:ncol(result_matrix)])))#
+ 
+colnames(brood_longer) = c("X","Y","value")
+
+
+
+##########################################################################
+##########################################################################
+
+#compares matrix 1 (squares_x: wasp presence), with matrix 2 (brood_longer: larvae)
+# squares_tbl <- as_tibble(squares_x)
+squares_x <- squares_x[order(squares_x$X), ]
+brood_longer[] <- lapply(brood_longer, as.numeric)
+brood_longer_df <- as.data.frame(brood_longer)
+brood_longer_df[105, "value"] <- 0
+matrix1 = squares_x
+matrix2 = brood_longer_df
+
+
+overlap_matrix <- matrix(0, nrow = nrow(matrix1), ncol = ncol(matrix1))
+colnames(overlap_matrix) <- colnames(matrix1)
+
+#make sure they have the same square size so the column and row number matches
+
+# Sum matrices element-wise only if both cells are non-zero
+
+for (i in 1:nrow(matrix1)) {
+  if (matrix1[i, "value"] != 0 && matrix2[i, "value"] != 0) {
+    overlap_matrix[i, 3] <- matrix1[i, "value"]
+  }
+}
+
+
+
+print("Overlap Matrix:")
+print(overlap_matrix)
+
+#make total occupation matrix for the two wasps
+sum_matrix = matrix1
+sum_matrix$X= 0
+sum_matrix$Y= 0
+
+#divide sum overlap by sum total times 100 to get percent
+sum(overlap_matrix)/sum(sum_matrix)*100
+#wasp 0 pre: 10.49383 0.9852217
+#wasp 1 pre: 42.31884 6.233766
+#wasp 2 pre: 42.31884 44.19643
+#wasp 3 pre: 46.67747 83.46774
+#wasp 4 pre: 6.478405 2.286902
+#wasp 5 pre: 25.89286 35.92233
+#wasp 5 day3: 16.74347
+
+```
+
+```{r}
+library(tidyr)
+library(tidyverse)
+library(dplyr)
+# Library
+library(ggplot2)
+library(dplyr)
+#library(hrbrthemes)
+
+
+#create sheet to receive X and Y coords per second
+
+coords_x = data.frame(time_secs = numeric(),
+                              X_cm = numeric(),
+                              Y_cm = numeric(),
+                              stringsAsFactors = FALSE)
+
+colnames(coords_x) = c("time_secs", "X_cm", "Y_cm")
+
+#load individual spreadsheet - add file path here
+xy_test = as.data.frame(read.csv("/Users/larost1/Desktop/Dissertation/Data/19063_day3_230919/data/19063_day3_230919_wasp5.csv"), 
+                        row.names=NULL)
+
+xsize = c(0,7.39)
+ysize = c(6.43,0)
+
+for(i in 1:(nrow(xy_test)/25)+1){
+  a = c(i,0,0)
+  coords_x = rbind(coords_x,a)
+}
+
+colnames(coords_x) = c("time_secs", "X_cm", "Y_cm")
+
+#average every 25 frames as a row
+
+for(i in 1:nrow(coords_x)){
+  a = xy_test[((i*25)-24):(i*25),]
+  coords_x$X_cm[i] = mean(na.omit(a$X..cm.[is.finite(a$X..cm.)]))
+  coords_x$Y_cm[i] = mean(na.omit(a$Y..cm.[is.finite(a$Y..cm.)]))
+}
+
+
+# Make dataset with one row per square of area
+# would replace "na.omit(coords_x$X_cm)+1+square_size" with the actual max value
+square_size = 0.25
+
+x = seq(0, max(7.39), by = square_size)
+y = seq(0, max(6.43), by = square_size)
+squares_x = expand.grid(X=x, Y=y)
+squares_x$value = 0
+
+#add occurrence values to squares dataset
+
+for(i in 1:nrow(squares_x)){
+  
+a = filter(coords_x, X_cm >= squares_x$X[i] & X_cm < (squares_x$X[i]+square_size) & Y_cm >= squares_x$Y[i] & Y_cm < (squares_x$Y[i]+square_size))
+ 
+squares_x$value[i] = nrow(a)
+ 
+}
+
+plotdata = squares_x
+plotdata$X = plotdata$X + (square_size/2)
+plotdata$Y = plotdata$Y + (square_size/2)
+
+heatmap = ggplot(squares_x, aes(X, Y, fill=value)) +
+  geom_tile() +
+  scale_y_reverse() +
+  scale_fill_gradientn(colours = c('transparent',wasp_col),values = c(0, .Machine$double.eps, 1)) +
+  geom_vline(xintercept = 0, linetype = "solid", color = "black") +
+  geom_hline(yintercept = 0, linetype = "solid", color = "black") +
+  geom_vline(xintercept = 7.39, linetype = "solid", color = "black") +
+  geom_hline(yintercept = 6.43, linetype = "solid", color = "black") +
+        theme(
+         panel.border = element_rect(color = "black", fill = NA, size = 1)
+       ) +
+  coord_equal(ratio = 1)
+print(heatmap)
+
+#########################################################################
+# matrix for larvae
+#create sheet to receive X and Y coords per second
+
+coords_brood = data.frame(day3X = numeric(),
+                      day3Y = numeric(),
+                      value = numeric(),
+                      stringsAsFactors = FALSE)
+
+colnames(coords_brood) = c("day3X", "day3Y", "value")
+
+#load individual spreadsheet - add file path here
+xy_brood = as.data.frame(read.csv("/Users/larost1/Desktop/Dissertation/19063_binary.csv"), 
+                        row.names=NULL)
+xsize = c(0,7.39)
+ysize = c(6.43,0)
+
+
+square_size = 0.25
+
+x = seq(0, max(7.39), by = square_size)
+y = seq(0, max(6.43), by = square_size)
+squares_b = expand.grid(X=x, Y=y)
+squares_b$value = 0
+
+#add occurrence values to squares dataset
+
+for(i in 1:nrow(squares_b)){
+  
+  brood = filter(xy_brood, day3X >= squares_b$X[i] & day3X < (squares_b$X[i]+square_size) & day3Y >= squares_b$Y[i] & day3Y < (squares_b$Y[i]+square_size))
+  
+  squares_b$value[i] = nrow(brood)
+  
+}
+
+#pivot wider converts it into a matrix
+brood = squares_b %>%
+  pivot_wider(
+    names_from = Y,
+    values_from = value
+  )
+brood
+
+
+
+
+increment_adjacent_and_threshold <- function(brood) {
+  rows <- nrow(brood)
+  cols <- ncol(brood)
+  
+  # Copy the original matrix
+  result_matrix <- brood
+  
+  # Iterate over each element of the matrix
+  for (i in 1:rows) {
+    for (j in 1:cols) {
+      # Check if the current element is 1
+      if (brood[i, j] == 1) {
+        # Increment adjacent elements
+        if (i > 1) result_matrix[i - 1, j] <- result_matrix[i - 1, j] + 1  # Up
+        if (i < rows) result_matrix[i + 1, j] <- result_matrix[i + 1, j] + 1  # Down
+        if (j > 1) result_matrix[i, j - 1] <- result_matrix[i, j - 1] + 1  # Left
+        if (j < cols) result_matrix[i, j + 1] <- result_matrix[i, j + 1] + 1  # Right
+      }
+    }
+    
+  }
+  
+  # Threshold non-zero values to 1
+  result_matrix[result_matrix != 0] <- 1
+  
+  return(result_matrix)
+}
+
+
+
+# Increment adjacent elements and set non-zero values to 1
+result_matrix <- increment_adjacent_and_threshold(brood)
+result_matrix$X = brood$X
+
+print(result_matrix)
+
+
+
+#pivot longer coverts the matrix into the longer form
+brood_longer = result_matrix %>% pivot_longer(cols=c(colnames(result_matrix[2:ncol(result_matrix)])))#
+ 
+colnames(brood_longer) = c("X","Y","value")
+
+
+
+##########################################################################
+##########################################################################
+
+#compares matrix 1 (squares_x: wasp presence), with matrix 2 (brood_longer: larvae)
+# squares_tbl <- as_tibble(squares_x)
+squares_x <- squares_x[order(squares_x$X), ]
+brood_longer[] <- lapply(brood_longer, as.numeric)
+brood_longer_df <- as.data.frame(brood_longer)
+brood_longer_df[105, "value"] <- 0
+matrix1 = squares_x
+matrix2 = brood_longer_df
+
+
+overlap_matrix <- matrix(0, nrow = nrow(matrix1), ncol = ncol(matrix1))
+colnames(overlap_matrix) <- colnames(matrix1)
+
+#make sure they have the same square size so the column and row number matches
+
+# Sum matrices element-wise only if both cells are non-zero
+
+for (i in 1:nrow(matrix1)) {
+  if (matrix1[i, "value"] != 0 && matrix2[i, "value"] != 0) {
+    overlap_matrix[i, 3] <- matrix1[i, "value"] + matrix2[i, "value"]
+  }
+}
+
+
+
+print("Overlap Matrix:")
+print(overlap_matrix)
+
+#make total occupation matrix for the two wasps
+sum_matrix = matrix1 + matrix2 
+sum_matrix$X= 0
+sum_matrix$Y= 0
+
+#divide sum overlap by sum total times 100 to get percent
+sum(overlap_matrix)/sum(sum_matrix)*100
+#wasp 0 pre: 10.49383
+#wasp 1 pre: 42.31884
+#wasp 2 pre: 42.31884
+#wasp 3 pre: 46.67747
+#wasp 4 pre: 6.478405
+#wasp 5 pre: 25.89286
+
+#wasp 5 day3: 16.74347
+
+```
+
+```{r - overlap matrix: wasp and wasp }
+library(tidyr)
+library(tidyverse)
+library(dplyr)
+# Library
+library(ggplot2)
+library(dplyr)
+#library(hrbrthemes)
+
+#create sheet to receive X and Y coords per second
+coords_x = data.frame(time_secs = numeric(),
+                              X_cm = numeric(),
+                              Y_cm = numeric(),
+                              stringsAsFactors = FALSE)
+
+colnames(coords_x) = c("time_secs", "X_cm", "Y_cm")
+
+#load individual spreadsheet - add file path here
+xy_test = as.data.frame(read.csv("/Users/larost1/Desktop/Dissertation/Data/19071_pre_040919_10min/Data/Original/19071_pre_040919_10min_wasp3.csv"), 
+                        row.names=NULL)
+
+xsize = c(0,7.33)
+ysize = c(7.16,0)
+
+for(i in 1:(nrow(xy_test)/25)+1){
+  a = c(i,0,0)
+  coords_x = rbind(coords_x,a)
+}
+
+colnames(coords_x) = c("time_secs", "X_cm", "Y_cm")
+
+#average every 25 frames as a row
+
+for(i in 1:nrow(coords_x)){
+  a = xy_test[((i*25)-24):(i*25),]
+  coords_x$X_cm[i] = mean(na.omit(a$X..cm.[is.finite(a$X..cm.)]))
+  coords_x$Y_cm[i] = mean(na.omit(a$Y..cm.[is.finite(a$Y..cm.)]))
+}
+
+
+# Make dataset with one row per square of area
+# would replace "na.omit(coords_x$X_cm)+1+square_size" with the actual max value
+square_size = 0.25
+
+x = seq(0, max(7.33), by = square_size)
+y = seq(0, max(7.16), by = square_size)
+squares_x = expand.grid(X=x, Y=y)
+squares_x$value = 0
+
+#add occurrence values to squares dataset
+
+for(i in 1:nrow(squares_x)){
+  
+a = filter(coords_x, X_cm >= squares_x$X[i] & X_cm < (squares_x$X[i]+square_size) & Y_cm >= squares_x$Y[i] & Y_cm < (squares_x$Y[i]+square_size))
+ 
+squares_x$value[i] = nrow(a)
+ 
+}
+
+plotdata = squares_x
+plotdata$X = plotdata$X + (square_size/2)
+plotdata$Y = plotdata$Y + (square_size/2)
+
+heatmap = ggplot(squares_x, aes(X, Y, fill=value)) +
+  geom_tile() +
+  scale_y_reverse() +
+  scale_fill_gradientn(colours = c('transparent',"coral"),values = c(0, .Machine$double.eps, 1)) +
+  geom_vline(xintercept = 0, linetype = "solid", color = "black") +
+  geom_hline(yintercept = 0, linetype = "solid", color = "black") +
+  geom_vline(xintercept = 7.33, linetype = "solid", color = "black") +
+  geom_hline(yintercept = 7.16, linetype = "solid", color = "black") +
+        theme(
+         panel.border = element_rect(color = "black", fill = NA, size = 1)
+       ) +
+  coord_equal(ratio = 1)
+print(heatmap)
+
+#########################################################################
+# matrix for wasp 2
+#create sheet to receive X and Y coords per second
+#create sheet to receive X and Y coords per second
+
+coords_wasp = data.frame(time_secs = numeric(),
+                              X_cm = numeric(),
+                              Y_cm = numeric(),
+                              stringsAsFactors = FALSE)
+
+colnames(coords_wasp) = c("time_secs", "X_cm", "Y_cm")
+
+#load individual spreadsheet - add file path here
+xy_wasp = as.data.frame(read.csv("/Users/larost1/Desktop/Dissertation/Data/19071_pre_040919_10min/Data/Original/19071_pre_040919_10min_wasp4.csv"), 
+                        row.names=NULL)
+
+xsize = c(0,7.33)
+ysize = c(7.16,0)
+
+for(i in 1:(nrow(xy_wasp)/25)+1){
+  b = c(i,0,0)
+  coords_wasp = rbind(coords_wasp,b)
+}
+
+colnames(coords_wasp) = c("time_secs", "X_cm", "Y_cm")
+
+#average every 25 frames as a row
+
+for(i in 1:nrow(coords_wasp)){
+  b = xy_wasp[((i*25)-24):(i*25),]
+  coords_wasp$X_cm[i] = mean(na.omit(b$X..cm.[is.finite(b$X..cm.)]))
+  coords_wasp$Y_cm[i] = mean(na.omit(b$Y..cm.[is.finite(b$Y..cm.)]))
+}
+
+
+# Make dataset with one row per square of area
+# would replace "na.omit(coords_wasp$X_cm)+1+square_size" with the actual max value
+square_size = 0.25
+
+x = seq(0, max(7.33), by = square_size)
+y = seq(0, max(7.16), by = square_size)
+squares_wasp = expand.grid(X=x, Y=y)
+squares_wasp$value = 0
+
+#add occurrence values to squares dataset
+
+for(i in 1:nrow(squares_wasp)){
+  
+b = filter(coords_wasp, X_cm >= squares_wasp$X[i] & X_cm < (squares_wasp$X[i]+square_size) & Y_cm >= squares_wasp$Y[i] & Y_cm < (squares_wasp$Y[i]+square_size))
+ 
+squares_wasp$value[i] = nrow(b)
+ 
+}
+
+plotdata = squares_wasp
+plotdata$X = plotdata$X + (square_size/2)
+plotdata$Y = plotdata$Y + (square_size/2)
+
+heatmap = ggplot(squares_wasp, aes(X, Y, fill=value)) +
+  geom_tile() +
+  scale_y_reverse() +
+  scale_fill_gradientn(colours = c('transparent',"coral"),values = c(0, .Machine$double.eps, 1)) +
+  geom_vline(xintercept = 0, linetype = "solid", color = "black") +
+  geom_hline(yintercept = 0, linetype = "solid", color = "black") +
+  geom_vline(xintercept = 7.33, linetype = "solid", color = "black") +
+  geom_hline(yintercept = 7.16, linetype = "solid", color = "black") +
+        theme(
+         panel.border = element_rect(color = "black", fill = NA, size = 1)
+       ) +
+  coord_equal(ratio = 1)
+print(heatmap)
+
+
+##########################################################################
+##########################################################################
+
+#compares matrix 1 (squares_x: wasp presence), with matrix 2 (brood_longer: larvae)
+# squares_tbl <- as_tibble(squares_x)
+matrix1 = squares_x
+matrix2 = squares_wasp
+
+
+overlap_matrix <- matrix(0, nrow = nrow(matrix1), ncol = ncol(matrix1))
+colnames(overlap_matrix) <- colnames(matrix1)
+
+#make sure they have the same square size so the column and row number matches
+
+# Sum matrices element-wise only if both cells are non-zero
+
+for (i in 1:nrow(matrix1)) {
+  if (matrix1[i, "value"] != 0 && matrix2[i, "value"] != 0) {
+    overlap_matrix[i, 3] <- matrix1[i, "value"] + matrix2[i, "value"]
+  }
+}
+
+
+
+print("Overlap Matrix:")
+print(overlap_matrix)
+
+#make total occupation matrix for the two wasps
+sum_matrix = matrix1 + matrix2 
+sum_matrix$X= 0
+sum_matrix$Y= 0
+
+#divide sum overlap by sum total times 100 to get percent
+sum(overlap_matrix)/sum(sum_matrix)*100
+
+
+#trex -i /Users/larost1/Videos/19071_pre_040919_10min.pv -exec /Users/larost1/Desktop/Dissertation/Data/19071_pre_040919_10min/backup/19071_pre_040919_10min.settings
+```
+
+```{r - overlap matrix: wasp and all other wasps }
+library(tidyr)
+library(tidyverse)
+library(dplyr)
+# Library
+library(ggplot2)
+library(dplyr)
+#library(hrbrthemes)
+
+#create sheet to receive X and Y coords per second
+coords_x = data.frame(time_secs = numeric(),
+                              X_cm = numeric(),
+                              Y_cm = numeric(),
+                              stringsAsFactors = FALSE)
+
+colnames(coords_x) = c("time_secs", "X_cm", "Y_cm")
+
+#load individual spreadsheet - add file path here
+xy_test = as.data.frame(read.csv("/Users/larost1/Desktop/Dissertation/Data/19071_pre_040919_10min/Data/Original/19071_pre_040919_10min_wasp0.csv"), 
+                        row.names=NULL)
+
+xsize = c(0,7.33)
+ysize = c(7.16,0)
+
+for(i in 1:(nrow(xy_test)/25)+1){
+  a = c(i,0,0)
+  coords_x = rbind(coords_x,a)
+}
+
+colnames(coords_x) = c("time_secs", "X_cm", "Y_cm")
+
+#average every 25 frames as a row
+
+for(i in 1:nrow(coords_x)){
+  a = xy_test[((i*25)-24):(i*25),]
+  coords_x$X_cm[i] = mean(na.omit(a$X..cm.[is.finite(a$X..cm.)]))
+  coords_x$Y_cm[i] = mean(na.omit(a$Y..cm.[is.finite(a$Y..cm.)]))
+}
+
+
+# Make dataset with one row per square of area
+# would replace "na.omit(coords_x$X_cm)+1+square_size" with the actual max value
+square_size = 0.25
+
+x = seq(0, max(7.33), by = square_size)
+y = seq(0, max(7.16), by = square_size)
+squares_x = expand.grid(X=x, Y=y)
+squares_x$value = 0
+
+#add occurrence values to squares dataset
+
+for(i in 1:nrow(squares_x)){
+  
+a = filter(coords_x, X_cm >= squares_x$X[i] & X_cm < (squares_x$X[i]+square_size) & Y_cm >= squares_x$Y[i] & Y_cm < (squares_x$Y[i]+square_size))
+ 
+squares_x$value[i] = nrow(a)
+ 
+}
+
+plotdata = squares_x
+plotdata$X = plotdata$X + (square_size/2)
+plotdata$Y = plotdata$Y + (square_size/2)
+
+heatmap = ggplot(squares_x, aes(X, Y, fill=value)) +
+  geom_tile() +
+  scale_y_reverse() +
+  scale_fill_gradientn(colours = c('transparent',"coral"),values = c(0, .Machine$double.eps, 1)) +
+  geom_vline(xintercept = 0, linetype = "solid", color = "black") +
+  geom_hline(yintercept = 0, linetype = "solid", color = "black") +
+  geom_vline(xintercept = 7.33, linetype = "solid", color = "black") +
+  geom_hline(yintercept = 7.16, linetype = "solid", color = "black") +
+        theme(
+         panel.border = element_rect(color = "black", fill = NA, size = 1)
+       ) +
+  coord_equal(ratio = 1)
+print(heatmap)
+
+#########################################################################
+# matrix for other wasps
+#create sheet to receive X and Y coords per second
+#create sheet to receive X and Y coords per second
+
+#load individual spreadsheet - add file path here
+wasp_1 = as.data.frame(read.csv("/Users/larost1/Desktop/Dissertation/Data/19071_pre_040919_10min/Data/Original/19071_pre_040919_10min_wasp1.csv"), 
+                        row.names=NULL)
+wasp_2 = as.data.frame(read.csv("/Users/larost1/Desktop/Dissertation/Data/19071_pre_040919_10min/Data/Original/19071_pre_040919_10min_wasp2.csv"), 
+                        row.names=NULL)
+wasp_3 = as.data.frame(read.csv("/Users/larost1/Desktop/Dissertation/Data/19071_pre_040919_10min/Data/Original/19071_pre_040919_10min_wasp3.csv"), 
+                         row.names=NULL)
+wasp_4 = as.data.frame(read.csv("/Users/larost1/Desktop/Dissertation/Data/19071_pre_040919_10min/Data/Original/19071_pre_040919_10min_wasp4.csv"), 
+                         row.names=NULL)
+
+
+
+# Define a function to process data for each wasp
+process_wasp_data <- function(wasp, max_x, max_y, square_size) {
+  # Create an empty dataframe to store coordinates
+  coords_wasp <- data.frame(
+    time_secs = numeric(),
+    X_cm = numeric(),
+    Y_cm = numeric(),
+    stringsAsFactors = FALSE
+  )
+  colnames(coords_wasp) <- c("time_secs", "X_cm", "Y_cm")
+  
+  # Create rows for every 25 frames
+  for(i in 1:(nrow(wasp)/25)+1) {
+    b <- c(i, 0, 0)
+    coords_wasp <- rbind(coords_wasp, b)
+  }
+  
+  # Average every 25 frames as a row
+  for(i in 1:nrow(coords_wasp)) {
+    b <- wasp[((i*25)-24):(i*25),]
+    coords_wasp$X_cm[i] <- mean(na.omit(b$X..cm.[is.finite(b$X..cm.)]))
+    coords_wasp$Y_cm[i] <- mean(na.omit(b$Y..cm.[is.finite(b$Y..cm.)]))
+  }
+  
+  # Create dataset with one row per square of area
+  x <- seq(0, max_x, by = square_size)
+  y <- seq(0, max_y, by = square_size)
+  squares_wasp <- expand.grid(X = x, Y = y)
+  squares_wasp$value <- 0
+  
+  # Add occurrence values to squares dataset
+  for(i in 1:nrow(squares_wasp)) {
+    b <- filter(coords_wasp, X_cm >= squares_wasp$X[i] & X_cm < (squares_wasp$X[i] + square_size) & 
+                Y_cm >= squares_wasp$Y[i] & Y_cm < (squares_wasp$Y[i] + square_size))
+    squares_wasp$value[i] <- nrow(b)
+  }
+  return(squares_wasp)
+}
+
+# Call the function for each wasp
+wasp_1_data <- process_wasp_data(wasp = wasp_1, max_x = 7.33, max_y = 7.16, square_size = 0.25)
+wasp_2_data <- process_wasp_data(wasp = wasp_2, max_x = 7.33, max_y = 7.16, square_size = 0.25)
+wasp_3_data <- process_wasp_data(wasp = wasp_3, max_x = 7.33, max_y = 7.16, square_size = 0.25)
+wasp_4_data <- process_wasp_data(wasp = wasp_4, max_x = 7.33, max_y = 7.16, square_size = 0.25)
+
+# heatmap = ggplot(wasp_5_data, aes(X, Y, fill=value)) +
+#   geom_tile() +
+#   scale_y_reverse() +
+#   scale_fill_gradientn(colours = c('transparent',"coral"),values = c(0, .Machine$double.eps, 1)) +
+#   geom_vline(xintercept = 0, linetype = "solid", color = "black") +
+#   geom_hline(yintercept = 0, linetype = "solid", color = "black") +
+#   geom_vline(xintercept = 7.33, linetype = "solid", color = "black") +
+#   geom_hline(yintercept = 7.16, linetype = "solid", color = "black") +
+#         theme(
+#          panel.border = element_rect(color = "black", fill = NA, size = 1)
+#        ) +
+#   coord_equal(ratio = 1)
+# print(heatmap)
+
+matrix1 = wasp_1_data
+matrix2 = wasp_2_data
+# matrix3 = wasp_3_data
+# matrix4 = wasp_4_data
+
+all_matrix <- matrix(0, nrow = nrow(matrix1), ncol = ncol(matrix1))
+colnames(all_matrix) <- colnames(matrix1)
+
+#make sure they have the same square size so the column and row number matches
+
+# Sum matrices of "values" at each row
+
+for (i in 1:nrow(matrix1)) {
+  all_matrix[i, 3] <- matrix1[i, "value"] + matrix2[i, "value"]
+}
+
+##########################################################################
+##########################################################################
+
+#compares matrix 1 (squares_x: wasp presence), with matrix 2 (brood_longer: larvae)
+# squares_tbl <- as_tibble(squares_x)
+matrixa = squares_x
+matrixb = all_matrix
+overlap_matrix <- matrix(0, nrow = nrow(matrixa), ncol = ncol(matrixa))
+colnames(overlap_matrix) <- colnames(matrixa)
+
+#make sure they have the same square size so the column and row number matches
+# Sum matrices element-wise only if both cells are non-zero
+
+for (i in 1:nrow(matrixa)) {
+  if (matrixa[i, "value"] != 0 && matrixb[i, "value"] != 0) {
+    overlap_matrix[i, 3] <- matrixa[i, "value"]
+  }
+}
+
+print(overlap_matrix)
+
+#make total occupation matrix for the two wasps
+sum_matrix = matrixa + matrixb 
+sum_matrix$X= 0
+sum_matrix$Y= 0
+
+#divide sum overlap by sum total times 100 to get percent
+sum(overlap_matrix)/sum(squares_x$value)*100
+
+
+```
+
+```{r total nest occupancy }
+library(tidyr)
+library(tidyverse)
+library(dplyr)
+# Library
+library(ggplot2)
+library(dplyr)
+#library(hrbrthemes)
+
+#create sheet to receive X and Y coords per second
+coords_x = data.frame(X_cm = numeric(),
+                        Y_cm = numeric(),
+                        stringsAsFactors = FALSE)
+
+colnames(coords_x) = c("X_cm", "Y_cm")
+
+#load individual spreadsheet - add file path here
+xy_test = as.data.frame(read.csv("/Users/larost1/Desktop/XYaverage_19058_pre_290819_10min.csv"), 
+                        row.names=NULL)
+
+xsize = c(0,8.01)
+ysize = c(7.66)
+
+# Make dataset with one row per square of area
+# would replace "na.omit(coords_x$X_cm)+1+square_size" with the actual max value
+square_size = 0.25
+
+x = seq(0, max(8.01), by = square_size)
+y = seq(0, max(7.66), by = square_size)
+squares_x = expand.grid(X=x, Y=y)
+squares_x$value = 0
+
+#add occurrence values to squares dataset
+
+for(i in 1:nrow(squares_x)){
+  
+a = filter(xy_test, X >= squares_x$X[i] & X < (squares_x$X[i]+square_size) & Y >= squares_x$Y[i] & Y < (squares_x$Y[i]+square_size))
+ 
+squares_x$value[i] = nrow(a)
+ 
+}
+
+# Filter rows with non-zero values in the "value" column
+squares_nonzero <- squares_x
+squares_nonzero$value <- as.numeric(squares_nonzero$value != 0)
+
+# Display the first few rows of the new data frame
+head(squares_nonzero)
+
+plotdata = squares_nonzero
+plotdata$X = plotdata$X + (square_size/2)
+plotdata$Y = plotdata$Y + (square_size/2)
+
+heatmap = ggplot(squares_nonzero, aes(X, Y, fill=value)) +
+  geom_tile() +
+  scale_y_reverse() +
+  scale_fill_gradientn(colours = c('transparent',"coral"),values = c(0, .Machine$double.eps, 1)) +
+  geom_vline(xintercept = 0, linetype = "solid", color = "black") +
+  geom_hline(yintercept = 0, linetype = "solid", color = "black") +
+  geom_vline(xintercept = 8.01, linetype = "solid", color = "black") +
+  geom_hline(yintercept = 7.66, linetype = "solid", color = "black") +
+        theme(
+         panel.border = element_rect(color = "black", fill = NA, size = 1)
+       ) +
+  coord_equal(ratio = 1)
+print(heatmap)
+
+#########################################################################
+# matrix for other wasps
+#create sheet to receive X and Y coords per second
+#create sheet to receive X and Y coords per second
+
+#load individual spreadsheet - add file path here
+wasp_1 = as.data.frame(read.csv("/Users/larost1/Desktop/Dissertation/Data/19058_pre_290819_10min/19058_pre_290819_10min_wasp0.csv"), 
+                        row.names=NULL)
+wasp_2 = as.data.frame(read.csv("/Users/larost1/Desktop/Dissertation/Data/19058_pre_290819_10min/19058_pre_290819_10min_wasp1.csv"), 
+                        row.names=NULL)
+wasp_3 = as.data.frame(read.csv("/Users/larost1/Desktop/Dissertation/Data/19058_pre_290819_10min/19058_pre_290819_10min_wasp2.csv"), 
+                         row.names=NULL)
+wasp_4 = as.data.frame(read.csv("/Users/larost1/Desktop/Dissertation/Data/19058_pre_290819_10min/19058_pre_290819_10min_wasp3.csv"), 
+                          row.names=NULL)
+# wasp_5 = as.data.frame(read.csv("/Users/larost1/Desktop/Dissertation/Data/19063_pre_140919_b_10min/data/19063_pre_140919_b_10min_wasp4.csv"), 
+#                           row.names=NULL)
+# wasp_6 = as.data.frame(read.csv("/Users/larost1/Desktop/Dissertation/Data/19063_pre_140919_b_10min/data/19063_pre_140919_b_10min_wasp5.csv"), 
+#                           row.names=NULL)
+
+
+
+# Define a function to process data for each wasp
+process_wasp_data <- function(wasp, max_x, max_y, square_size) {
+  # Create an empty dataframe to store coordinates
+  coords_wasp <- data.frame(
+    time_secs = numeric(),
+    X_cm = numeric(),
+    Y_cm = numeric(),
+    stringsAsFactors = FALSE
+  )
+  colnames(coords_wasp) <- c("time_secs", "X_cm", "Y_cm")
+  
+  # Create rows for every 25 frames
+  for(i in 1:(nrow(wasp)/25)+1) {
+    b <- c(i, 0, 0)
+    coords_wasp <- rbind(coords_wasp, b)
+  }
+  
+  # Average every 25 frames as a row
+  for(i in 1:nrow(coords_wasp)) {
+    b <- wasp[((i*25)-24):(i*25),]
+    coords_wasp$X_cm[i] <- mean(na.omit(b$X..cm.[is.finite(b$X..cm.)]))
+    coords_wasp$Y_cm[i] <- mean(na.omit(b$Y..cm.[is.finite(b$Y..cm.)]))
+  }
+  
+  # Create dataset with one row per square of area
+  x <- seq(0, max_x, by = square_size)
+  y <- seq(0, max_y, by = square_size)
+  squares_wasp <- expand.grid(X = x, Y = y)
+  squares_wasp$value <- 0
+  
+  # Add occurrence values to squares dataset
+  for(i in 1:nrow(squares_wasp)) {
+    b <- filter(coords_wasp, X_cm >= squares_wasp$X[i] & X_cm < (squares_wasp$X[i] + square_size) & 
+                Y_cm >= squares_wasp$Y[i] & Y_cm < (squares_wasp$Y[i] + square_size))
+    squares_wasp$value[i] <- nrow(b)
+  }
+  return(squares_wasp)
+}
+
+# Call the function for each wasp
+wasp_1_data <- process_wasp_data(wasp = wasp_1, max_x = 8.01, max_y = 7.66, square_size = 0.25)
+wasp_2_data <- process_wasp_data(wasp = wasp_2, max_x = 8.01, max_y = 7.66, square_size = 0.25)
+wasp_3_data <- process_wasp_data(wasp = wasp_3, max_x = 8.01, max_y = 7.66, square_size = 0.25)
+wasp_4_data <- process_wasp_data(wasp = wasp_4, max_x = 8.01, max_y = 7.66, square_size = 0.25)
+# wasp_5_data <- process_wasp_data(wasp = wasp_5, max_x = 8.01, max_y = 7.66, square_size = 0.25)
+# wasp_6_data <- process_wasp_data(wasp = wasp_6, max_x = 8.01, max_y = 7.66, square_size = 0.25)
+
+
+matrix1 = wasp_1_data
+matrix2 = wasp_2_data
+matrix3 = wasp_3_data
+matrix4 = wasp_4_data
+# matrix5 = wasp_5_data
+# matrix6 = wasp_6_data
+
+
+all_matrix <- matrix(0, nrow = nrow(matrix1), ncol = ncol(matrix1))
+colnames(all_matrix) <- colnames(matrix1)
+
+#make sure they have the same square size so the column and row number matches
+
+# Sum matrices of "values" at each row
+
+for (i in 1:nrow(matrix1)) {
+  all_matrix[i, 3] <- matrix1[i, "value"] + matrix2[i, "value"]+ matrix3[i, "value"]+ matrix4[i, "value"]
+}
+
+##########################################################################
+##########################################################################
+
+#compares matrix 1 (squares_x: wasp presence), with matrix 2 (brood_longer: larvae)
+# squares_tbl <- as_tibble(squares_x)
+matrixa = all_matrix
+matrixb = squares_nonzero
+overlap_matrix <- matrix(0, nrow = nrow(matrixa), ncol = ncol(matrixa))
+colnames(overlap_matrix) <- colnames(matrixa)
+
+#make sure they have the same square size so the column and row number matches
+# Sum matrices element-wise only if both cells are non-zero
+
+for (i in 1:nrow(matrixa)) {
+  if (matrixa[i, "value"] != 0 && matrixb[i, "value"] != 0) {
+    overlap_matrix[i, 3] <- matrixb[i, "value"]
+  }
+}
+
+print(overlap_matrix)
+
+#make total occupation matrix for the two wasps
+sum_matrix = matrixa + matrixb 
+sum_matrix$X= 0
+sum_matrix$Y= 0
+
+#divide sum overlap by sum total times 100 to get percent
+sum(overlap_matrix)/sum(squares_nonzero$value)*100
+
+
+```
+```{r wasp total}
+# matrix for other wasps
+#create sheet to receive X and Y coords per second
+#create sheet to receive X and Y coords per second
+
+#load individual spreadsheet - add file path here
+wasp_1 = as.data.frame(read.csv("/Users/larost1/Desktop/Dissertation/Data/19058_pre_290819_10min/19058_pre_290819_10min_wasp0.csv"), 
+                        row.names=NULL)
+
+
+# Define a function to process data for each wasp
+process_wasp_data <- function(wasp, max_x, max_y, square_size) {
+  # Create an empty dataframe to store coordinates
+  coords_wasp <- data.frame(
+    time_secs = numeric(),
+    X_cm = numeric(),
+    Y_cm = numeric(),
+    stringsAsFactors = FALSE
+  )
+  colnames(coords_wasp) <- c("time_secs", "X_cm", "Y_cm")
+  
+  # Create rows for every 25 frames
+  for(i in 1:(nrow(wasp)/25)+1) {
+    b <- c(i, 0, 0)
+    coords_wasp <- rbind(coords_wasp, b)
+  }
+  
+  # Average every 25 frames as a row
+  for(i in 1:nrow(coords_wasp)) {
+    b <- wasp[((i*25)-24):(i*25),]
+    coords_wasp$X_cm[i] <- mean(na.omit(b$X..cm.[is.finite(b$X..cm.)]))
+    coords_wasp$Y_cm[i] <- mean(na.omit(b$Y..cm.[is.finite(b$Y..cm.)]))
+  }
+  
+  # Create dataset with one row per square of area
+  x <- seq(0, max_x, by = square_size)
+  y <- seq(0, max_y, by = square_size)
+  squares_wasp <- expand.grid(X = x, Y = y)
+  squares_wasp$value <- 0
+  
+  # Add occurrence values to squares dataset
+  for(i in 1:nrow(squares_wasp)) {
+    b <- filter(coords_wasp, X_cm >= squares_wasp$X[i] & X_cm < (squares_wasp$X[i] + square_size) & 
+                Y_cm >= squares_wasp$Y[i] & Y_cm < (squares_wasp$Y[i] + square_size))
+    squares_wasp$value[i] <- nrow(b)
+  }
+  return(squares_wasp)
+}
+# Call the function for the wasp
+wasp_1_data <- process_wasp_data(wasp = wasp_1, max_x = 8.01, max_y = 7.66, square_size = 0.25)
+
+
+matrix1 = wasp_1_data
+
+##########################################################################
+##########################################################################
+
+
+#make sure they have the same square size so the column and row number matches
+# Sum matrices element-wise only if both cells are non-zero
+
+for (i in 1:nrow(matrix1)) {
+  if (matrix1[i, "value"] != 0) {
+    overlap_matrix[i, 3] <- 1
+  }
+}
+
+print(overlap_matrix)
+
+#to get total area size
+sum(overlap_matrix)*(0.25*0.25)
+
+```
+
+```{r wasp occupancy %}
+library(tidyr)
+library(tidyverse)
+library(dplyr)
+# Library
+library(ggplot2)
+library(dplyr)
+#library(hrbrthemes)
+
+#create sheet to receive X and Y coords per second
+coords_x = data.frame(X_cm = numeric(),
+                        Y_cm = numeric(),
+                        stringsAsFactors = FALSE)
+
+colnames(coords_x) = c("X_cm", "Y_cm")
+
+#load individual spreadsheet - add file path here
+xy_test = as.data.frame(read.csv("/Users/larost1/Desktop/XYaverage_19058_pre_290819_10min.csv"), 
+                        row.names=NULL)
+
+xsize = c(0,8.01)
+ysize = c(7.66)
+
+# Make dataset with one row per square of area
+# would replace "na.omit(coords_x$X_cm)+1+square_size" with the actual max value
+square_size = 0.25
+
+x = seq(0, max(8.01), by = square_size)
+y = seq(0, max(7.66), by = square_size)
+squares_x = expand.grid(X=x, Y=y)
+squares_x$value = 0
+
+#add occurrence values to squares dataset
+
+for(i in 1:nrow(squares_x)){
+  
+a = filter(xy_test, X >= squares_x$X[i] & X < (squares_x$X[i]+square_size) & Y >= squares_x$Y[i] & Y < (squares_x$Y[i]+square_size))
+ 
+squares_x$value[i] = nrow(a)
+ 
+}
+
+# Filter rows with non-zero values in the "value" column
+squares_nonzero <- squares_x
+squares_nonzero$value <- as.numeric(squares_nonzero$value != 0)
+
+# Display the first few rows of the new data frame
+head(squares_nonzero)
+
+
+######################################################################################
+#load individual spreadsheet - add file path here
+wasp_1 = as.data.frame(read.csv("/Users/larost1/Desktop/Dissertation/Data/19058_pre_290819_10min/19058_pre_290819_10min_wasp0.csv"), 
+                        row.names=NULL)
+
+
+# Define a function to process data for each wasp
+process_wasp_data <- function(wasp, max_x, max_y, square_size) {
+  # Create an empty dataframe to store coordinates
+  coords_wasp <- data.frame(
+    time_secs = numeric(),
+    X_cm = numeric(),
+    Y_cm = numeric(),
+    stringsAsFactors = FALSE
+  )
+  colnames(coords_wasp) <- c("time_secs", "X_cm", "Y_cm")
+  
+  # Create rows for every 25 frames
+  for(i in 1:(nrow(wasp)/25)+1) {
+    b <- c(i, 0, 0)
+    coords_wasp <- rbind(coords_wasp, b)
+  }
+  
+  # Average every 25 frames as a row
+  for(i in 1:nrow(coords_wasp)) {
+    b <- wasp[((i*25)-24):(i*25),]
+    coords_wasp$X_cm[i] <- mean(na.omit(b$X..cm.[is.finite(b$X..cm.)]))
+    coords_wasp$Y_cm[i] <- mean(na.omit(b$Y..cm.[is.finite(b$Y..cm.)]))
+  }
+  
+  # Create dataset with one row per square of area
+  x <- seq(0, max_x, by = square_size)
+  y <- seq(0, max_y, by = square_size)
+  squares_wasp <- expand.grid(X = x, Y = y)
+  squares_wasp$value <- 0
+  
+  # Add occurrence values to squares dataset
+  for(i in 1:nrow(squares_wasp)) {
+    b <- filter(coords_wasp, X_cm >= squares_wasp$X[i] & X_cm < (squares_wasp$X[i] + square_size) & 
+                Y_cm >= squares_wasp$Y[i] & Y_cm < (squares_wasp$Y[i] + square_size))
+    squares_wasp$value[i] <- nrow(b)
+  }
+  return(squares_wasp)
+}
+# Call the function for the wasp
+wasp_1_data <- process_wasp_data(wasp = wasp_1, max_x = 8.01, max_y = 7.66, square_size = 0.25)
+
+
+##########################################################################
+##########################################################################
+
+matrixa = wasp_1_data
+matrixb = squares_nonzero
+overlap_matrix <- matrix(0, nrow = nrow(matrixa), ncol = ncol(matrixa))
+colnames(overlap_matrix) <- colnames(matrixa)
+
+#make sure they have the same square size so the column and row number matches
+# Sum matrices element-wise only if both cells are non-zero
+
+for (i in 1:nrow(matrixa)) {
+  if (matrixa[i, "value"] != 0 && matrixb[i, "value"] != 0) {
+    overlap_matrix[i, 3] <- matrixb[i, "value"]
+  }
+}
+
+print(overlap_matrix)
+
+#make total occupation matrix for the two wasps
+sum_matrix = matrixa + matrixb 
+sum_matrix$X= 0
+sum_matrix$Y= 0
+
+#divide sum overlap by sum total times 100 to get percent
+sum(overlap_matrix)/sum(squares_nonzero$value)*100
+
+```
+
